@@ -11,7 +11,7 @@ br.set_handle_robots(False)	  # ignore robots
 br.set_handle_refresh(False)  # can sometimes hang without this
 br.addheaders = [('User-agent', 'Firefox')]
 wochentag = ["Montag", "Dienstag","Mittwoch","Donnerstag", "Freitag", "Samstag", "Sonntag"]
-
+lines = ("Linie 1", "Linie 2", "Linie 3", "Linie 4/5")
 
 lt = localtime()
 print "Es ist", wochentag[lt.tm_wday], "der", str(lt.tm_mday)+"."+str(lt.tm_mon)+". um "+str(lt.tm_hour)+":%02i"%lt.tm_min+" Uhr."
@@ -19,7 +19,6 @@ address = "http://www.wetteronline.de/wetter/karlsruhe"
 #ant = br.open("http://localhost/Daily/daily.php?testy=marco")
 #print ant.read()
 #input()
-	
 
 response = br.open(address)
 seite = response.read()
@@ -77,45 +76,9 @@ receipt = re.findall('<a href="/rezept-des-tages.php">.{800}', seite)
 receipt = re.findall('title="[^"]+',receipt[0])[1].split('"')[1]
 print "CHEFKOCH Rezept des Tages:",receipt
 
-
-print "Mensa-Essen"
-response = br.open("http://www.studentenwerk-karlsruhe.de/de/essen/")
-seite = response.read()
-seite = seite.replace("\n", "") # einzeilig machen
-seite = seite.split('<div id="canteen_place_2"')[0] # nur Mensa am Adenauerring!
-price = re.findall('.{200}class="bgp price_1">[^&]+', seite)
-for i in price:
-	#print i
-	j = i.split('price_1">')[1].replace(",", "")
-	try:
-		j = int(j)
-		if int(j)>100:
-			i = i.replace("<b>","!")
-			i = i.replace("</b>","!")
-			print "Essen:", i.split("!")[1], "Preis:", j/100.
-	except: print ""
-print "TODO: welche Linie?"
-
-print "Oxford:"
-response = br.open("http://www.oxford-studentenfutter.de/essenpub.html")
-seite = response.read()
-seite = seite.replace("\n", "") # einzeilig machen
-#akttag = "<em>"++"</em>"
-if lt.tm_wday < 5:
-	wasgibts = re.findall(wochentag[lt.tm_wday]+'.{450}', seite)[0]
-else:
-	wasgibts = re.findall(wochentag[0]+'.{450}', seite)[0]
-preise = re.findall("\d.\d\d", wasgibts)
-essen = re.findall("<em>[^â]+", wasgibts)
-for i in range(len(essen)):
-	print str(essen[i].split(">")[1])+":", preise[i], "Euro"
-
-
-
 print "Top-Schlagzeilen, SPIEGEL ONLINE:"
 response = br.open("http://www.spiegel.de/schlagzeilen/tops/index.html")
 seite = response.read().decode('iso-8859-1').replace("\n","")# einzeilig machen
-seite = seite.replace(u'\xa0', u' ') # replaced with space
 headline = re.findall('class="headline-intro">([^<]+)', seite)
 headline2 = re.findall('class="headline">([^<]+)', seite)
 #g = open("headline.txt", 'w')
@@ -123,12 +86,26 @@ headline2 = re.findall('class="headline">([^<]+)', seite)
 	#g.write(("{"+headline[i]+"}{"+headline2[i]+"}\n").encode('utf-8'))
 #g.close()
 response = br.open("http://www.studentenwerk-karlsruhe.de/de/essen/?view=ok&STYLE=popup_plain&c=adenauerring&p=1")
-soup = BeautifulSoup(response.read().split('</style>')[2].decode('utf-8'))
-print "BeautifulSoup-Test"
+seite = response.read().decode('utf8').split('</style>')[2]
+seite = seite.replace(' &euro;', u'') # replaced with nothing
+soup = BeautifulSoup(seite)
+print "Mensa-Essen"
+days = []
+cur_lin = lines[0]
+g =open("mensa.txt",'w')
+g.write("["+cur_lin+":")
 for i in soup.find_all('h1'):
-	print i.string
-for i in soup.find_all("span", "bg"):
-	print i.b.string
-for i in soup.table.find_all("span", "bgp price_1"):
-	print i
+	days.append(i.string)
+for j in range(len(soup.find_all("table", width="700"))):
+	for i in soup.find_all("table", width="700")[j].find_all("span", "bgp price_1"):
+		if i.parent.parent.parent.parent.parent.td.string in lines:
+			if not i.parent.parent.parent.parent.parent.td.string == cur_lin:
+				cur_lin = i.parent.parent.parent.parent.parent.td.string
+				g.write("]["+cur_lin+":")
+			if i.string == None:
+				g.write('{'+i.parent.parent.span.b.string.encode('utf-8')+":}")
+			else:
+				g.write('{'+i.parent.parent.span.b.string.encode('utf-8')+":"+i.string.encode('utf-8')+"}")
+g.write("]")
+g.close()
 print "Programm beendet."
